@@ -19,6 +19,29 @@ $archive_path = "F:\logs-archive"
 # Path to log file
 $log_file = 'F:\logs-archive\log.txt'
 
+function Archive-File($filePath)
+    {
+        $fileInfo = New-Object System.IO.FileInfo $filePath
+
+        #Check that file is't using by other process
+        try 
+        {
+            $fileStream = $fileInfo.Open( [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read )
+            #Archive file
+            #If you don't want to delete source file (log) delete option -sdel
+            #-y : assume Yes on all queries
+            #a : Add files to archive
+            #-mx7 РІС‹СЃРѕРєР°СЏ СЃС‚РµРїРµРЅСЊ СЃР¶Р°С‚РёСЏ (7), РјРѕР¶РЅРѕ РїРѕСЃС‚Р°РІРёС‚СЊ Рё 5 (РЅРѕСЂРјР°Р»СЊРЅРѕРµ СЃР¶Р°С‚РёРµ)
+            #-sdel delete source after compress
+            & $7zip a -tzip -mx7 -sdel $archive_path\$dirsFor\$year\$month\$month-$day.zip $filePath -y >> $log_file
+        }
+        catch
+        {
+            #Write to log that file is locked by another process
+            echo "$(Get-Date) $filePath is locked" >> $log_file
+        }
+    }
+
 # Check that 7zip is installed
 if (-not (test-path $7zip)) {throw "$7zip needed"}
 
@@ -32,20 +55,16 @@ If(!(test-path $archive_path))
 $dirs = Get-ChildItem -Path $path_log_files | Where-Object {  $_.Attributes -eq "Directory" }
 
 foreach ($dirsFor in $dirs) {
-    $dirsFor.Name
+    #$dirsFor.Name
 
     #Get all files from subdir
     $files=Get-ChildItem -Path $path_log_files/$dirsFor -Filter $extention | Where-Object {  $_.LastWriteTime.Month -eq $month -and $_.LastWriteTime.Year -eq $year }
-    $files.Name
-
-    #-y : assume Yes on all queries
-    #a : Add files to archive
-    #-mx7 РІС‹СЃРѕРєР°СЏ СЃС‚РµРїРµРЅСЊ СЃР¶Р°С‚РёСЏ (7), РјРѕР¶РЅРѕ РїРѕСЃС‚Р°РІРёС‚СЊ Рё 5 (РЅРѕСЂРјР°Р»СЊРЅРѕРµ СЃР¶Р°С‚РёРµ)
-    #-sdel delete source after compress
+    #$files.Name
 
     #Add files to archive
     foreach ($filess in $files) {
         $filess | ForEach-Object{$_.FullName}
-        & $7zip a -tzip -mx7 -sdel $archive_path\$dirsFor\$year\$month\$month-$day.zip $filess.FullName -y > $log_file
+        #Run function which archive files
+        Archive-File $filess.FullName
     }
 }
